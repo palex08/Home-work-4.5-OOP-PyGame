@@ -38,10 +38,12 @@ class Tree:
         self.x = random.randint(self.side_tree[0], self.side_tree[1])
         self.y = 0 - self.image.get_height()
         self.trees_list = trees_list
+        self.rect = self.image.get_rect(topleft=(self.x, self.y))
         self.trees_list.append(self)
 
     def update(self):
         self.y += self.speed
+        self.rect.topleft = (self.x, self.y)
         if self.y > self.screen_height:
             self.trees_list.remove(self)
 
@@ -87,12 +89,13 @@ class Target:
     def update(self):
         self.y += self.speed
         self.rect.topleft = (self.x, self.y)
+        self.check_collision_with_others()
         if self.y > self.screen_height:
             self.target_list.remove(self)
         if self.rect.colliderect(self.player_car.rect):
             self.target_list.remove(self)
-
-        self.check_collision_with_others()
+            return True
+        return False
 
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
@@ -114,12 +117,18 @@ class Game:
         self.trees_list = []
         self.target_time = 60
         self.tree_time = 60
+        self.distance_traveled = 0
+        self.lives = 5
 
         pygame.init()
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
         pygame.display.set_caption('Race Game')
         icon = pygame.image.load("img/icon.jpg")
         pygame.display.set_icon(icon)
+
+        self.side_bar = pygame.Surface((self.SCREEN_WIDTH - 970, self.SCREEN_HEIGHT))
+        self.side_bar.fill((255, 255, 255))
+        self.font = pygame.font.Font(None, 24)
 
         self.clock = pygame.time.Clock()
         self.road = Road(self.SCREEN_WIDTH, self.SCREEN_HEIGHT, self.speed)
@@ -132,6 +141,8 @@ class Game:
         game_running = True
         while game_running:
             delta_time = self.clock.tick(30)
+            self.distance_traveled += self.speed * delta_time / 1000  # Update distance
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     game_running = False
@@ -144,7 +155,7 @@ class Game:
             if keys[pygame.K_RIGHT]:
                 self.player_car.move_right()
             if keys[pygame.K_UP]:
-                if self.speed < 9:
+                if self.speed < 10:
                     self.road.speed += 1
                     for target in self.target_list:
                         target.speed += 1
@@ -152,7 +163,7 @@ class Game:
                         tree.speed += 1
                     self.speed += 1
             if keys[pygame.K_DOWN]:
-                if self.speed > 6:
+                if self.speed > 7:
                     self.road.speed = max(2, self.road.speed - 1)
                     for target in self.target_list:
                         target.speed -= 1
@@ -161,6 +172,8 @@ class Game:
                     self.speed -= 1
 
             self.screen.fill('DarkGreen')
+            self.screen.blit(self.side_bar, (970, 0))
+            self.side_bar.fill((0, 0, 0))
 
             if self.tree_time == 0:
                 Tree(self.SCREEN_WIDTH, self.SCREEN_HEIGHT, self.speed, self.trees_list)
@@ -185,7 +198,8 @@ class Game:
             self.road.draw(self.screen)
 
             for target in self.target_list:
-                target.update()
+                if target.update():
+                    self.lives -= 1
                 target.draw(self.screen)
 
             for tree in self.trees_list:
@@ -193,6 +207,20 @@ class Game:
                 tree.draw(self.screen)
 
             self.player_car.draw(self.screen)
+
+            # Update and draw sidebar
+            distance_miles = self.distance_traveled / 1000  # Convert pixels to miles
+            distance_text = self.font.render(f"Distance: {distance_miles:.2f} miles", True, (255, 255, 255))
+            lives_text = self.font.render(f"Lives: {self.lives}", True, (255, 255, 255))
+            self.side_bar.blit(distance_text, (20, 20))
+            self.side_bar.blit(lives_text, (20, 60))
+
+            if self.lives <= 0:
+                game_running = False
+                game_over_text = self.font.render("GAME OVER", True, (255, 0, 0))
+                self.screen.blit(game_over_text, (self.SCREEN_WIDTH // 2 - game_over_text.get_width() // 2, self.SCREEN_HEIGHT // 2))
+                pygame.display.update()
+                pygame.time.wait(3000)
 
             pygame.display.update()
 
@@ -202,4 +230,5 @@ class Game:
 
 if __name__ == "__main__":
     Game().run()
+
 
