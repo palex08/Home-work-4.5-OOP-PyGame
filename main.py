@@ -2,15 +2,15 @@ import pygame
 import sys
 import random
 
-
-class MyCar:
-    def __init__(self, road_width, road_height, speed=6):
+class PlayerCar:
+    def __init__(self, road_width, road_height, speed):
         self.image = pygame.image.load('img/mycar.png')
         self.road_width = road_width
         self.road_height = road_height
         self.x = 470 - self.image.get_width() // 2
         self.y = self.road_height - 150
-        self.speed = speed  # Скорость перемещения машины
+        self.speed = speed
+        self.rect = self.image.get_rect(topleft=(self.x, self.y))
 
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
@@ -18,37 +18,41 @@ class MyCar:
     def move_left(self):
         if self.x - self.speed >= 290:
             self.x -= self.speed
+        self.rect.topleft = (self.x, self.y)
 
     def move_right(self):
         if self.x + self.speed <= 650 - self.image.get_width():
             self.x += self.speed
+        self.rect.topleft = (self.x, self.y)
 
 
-class Trees:
-    def __init__(self, SCREEN_WIDTH, SCREEN_HEIGHT, speed=6):
-        self.SCREEN_WIDTH = SCREEN_WIDTH
-        self.SCREEN_HEIGHT = SCREEN_HEIGHT
-        self.image = pygame.image.load('img/tree.png')
+class Tree:
+    def __init__(self, screen_width, screen_height, speed, trees_list):
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.images = ['img/nature/tree1.png', 'img/nature/tree2.png', 'img/nature/tree3.png']
+        self.image = pygame.image.load(random.choice(self.images))
         self.speed = speed
-        self.side_tree = random.choice([(0, self.SCREEN_WIDTH - 1030),
-                                        (self.SCREEN_WIDTH - 500, self.SCREEN_WIDTH - 300)])
+        self.side_tree = random.choice([(0, self.screen_width - 1030),
+                                        (self.screen_width - 500, self.screen_width - 300)])
         self.x = random.randint(self.side_tree[0], self.side_tree[1])
         self.y = 0 - self.image.get_height()
-        trees_list.append(self)
+        self.trees_list = trees_list
+        self.trees_list.append(self)
 
     def update(self):
         self.y += self.speed
-        if self.y > self.SCREEN_HEIGHT:
-            trees_list.remove(self)
+        if self.y > self.screen_height:
+            self.trees_list.remove(self)
 
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
 
 
 class Road:
-    def __init__(self, SCREEN_WIDTH, SCREEN_HEIGHT, speed=6):
-        self.SCREEN_WIDTH = SCREEN_WIDTH
-        self.SCREEN_HEIGHT = SCREEN_HEIGHT
+    def __init__(self, screen_width, screen_height, speed=6):
+        self.screen_width = screen_width
+        self.screen_height = screen_height
         self.road_image = pygame.image.load("img/road.png")
         self.x = 250
         self.y = 0
@@ -56,7 +60,7 @@ class Road:
 
     def update(self):
         self.y += self.speed
-        if self.y + self.road_image.get_height() > self.SCREEN_HEIGHT:
+        if self.y + self.road_image.get_height() > self.screen_height:
             self.y = -self.road_image.get_height()
 
     def draw(self, screen):
@@ -65,117 +69,137 @@ class Road:
 
 
 class Target:
-    def __init__(self, SCREEN_WIDTH, SCREEN_HEIGHT):
-        self.SCREEN_WIDTH = SCREEN_WIDTH
-        self.SCREEN_HEIGHT = SCREEN_HEIGHT
-        self.images = ['img/car1.png', 'img/car2.png', 'img/car3.png']
+    def __init__(self, screen_width, screen_height, player_car, target_list):
+        self.player_car = player_car
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.images = ['img/targets/car1.png', 'img/targets/car2.png', 'img/targets/car3.png',
+                       'img/targets/car4.png', 'img/targets/car5.png', 'img/targets/car6.png',
+                       'img/targets/car7.png', 'img/targets/car8.png', 'img/targets/car9.png']
         self.image = pygame.image.load(random.choice(self.images))
         self.x = random.choice([310, 400, 490, 585])
         self.y = 0 - self.image.get_height()
-        self.speed = random.randint(2, 5)
+        self.speed = random.randint(3, 6)
         self.rect = self.image.get_rect(topleft=(self.x, self.y))
-        target_list.append(self)
+        self.target_list = target_list
+        self.target_list.append(self)
 
     def update(self):
         self.y += self.speed
         self.rect.topleft = (self.x, self.y)
-        if self.y > self.SCREEN_HEIGHT:
-            target_list.remove(self)
+        if self.y > self.screen_height:
+            self.target_list.remove(self)
+        if self.rect.colliderect(self.player_car.rect):
+            self.target_list.remove(self)
+
+        self.check_collision_with_others()
 
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
 
-    def check_collision(self, other):
-        return self.rect.colliderect(other.rect)
+    def check_collision_with_others(self):
+        for target in self.target_list:
+            if target != self and self.rect.colliderect(target.rect):
+                self.speed = 3
+                target.speed = 4
 
 
-trees_list = []
-target_list = []
+class Game:
+    def __init__(self):
+        self.SCREEN_WIDTH = 1200
+        self.SCREEN_HEIGHT = 650
+        self.speed = 6
+        self.road_width, self.road_height = 446, 650
+        self.target_list = []
+        self.trees_list = []
+        self.target_time = 60
+        self.tree_time = 60
+
+        pygame.init()
+        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+        pygame.display.set_caption('Race Game')
+        icon = pygame.image.load("img/icon.jpg")
+        pygame.display.set_icon(icon)
+
+        self.clock = pygame.time.Clock()
+        self.road = Road(self.SCREEN_WIDTH, self.SCREEN_HEIGHT, self.speed)
+        self.player_car = PlayerCar(self.road_width, self.road_height, self.speed)
+
+    def can_spawn_target(self, x):
+        return sum(1 for target in self.target_list if target.x == x and target.y < 300) < 1
+
+    def run(self):
+        game_running = True
+        while game_running:
+            delta_time = self.clock.tick(30)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    game_running = False
+                if event.type == pygame.MOUSEBUTTONUP:
+                    print(pygame.mouse.get_pos())
+
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_LEFT]:
+                self.player_car.move_left()
+            if keys[pygame.K_RIGHT]:
+                self.player_car.move_right()
+            if keys[pygame.K_UP]:
+                if self.speed < 9:
+                    self.road.speed += 1
+                    for target in self.target_list:
+                        target.speed += 1
+                    for tree in self.trees_list:
+                        tree.speed += 1
+                    self.speed += 1
+            if keys[pygame.K_DOWN]:
+                if self.speed > 6:
+                    self.road.speed = max(2, self.road.speed - 1)
+                    for target in self.target_list:
+                        target.speed -= 1
+                    for tree in self.trees_list:
+                        tree.speed = max(2, tree.speed - 1)
+                    self.speed -= 1
+
+            self.screen.fill('DarkGreen')
+
+            if self.tree_time == 0:
+                Tree(self.SCREEN_WIDTH, self.SCREEN_HEIGHT, self.speed, self.trees_list)
+                self.tree_time = random.randint(30, 60)
+            else:
+                self.tree_time -= 1
+
+            if self.target_time == 0:
+                possible_x_positions = [310, 400, 490, 585]
+                random.shuffle(possible_x_positions)
+                for x in possible_x_positions:
+                    if self.can_spawn_target(x):
+                        target = Target(self.SCREEN_WIDTH, self.SCREEN_HEIGHT, self.player_car, self.target_list)
+                        target.x = x
+                        target.rect.topleft = (target.x, target.y)
+                        break
+                self.target_time = random.randint(30, 60)
+            else:
+                self.target_time -= 1
+
+            self.road.update()
+            self.road.draw(self.screen)
+
+            for target in self.target_list:
+                target.update()
+                target.draw(self.screen)
+
+            for tree in self.trees_list:
+                tree.update()
+                tree.draw(self.screen)
+
+            self.player_car.draw(self.screen)
+
+            pygame.display.update()
+
+        pygame.quit()
+        sys.exit()
 
 
-def main():
-    target_time = 60
-    tree_time = 60
-    SCREEN_WIDTH = 1200
-    SCREEN_HEIGHT = 650
+if __name__ == "__main__":
+    Game().run()
 
-    road_width, road_height = 446, 650
-    pygame.init()
-
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption('Race Game')
-    icon = pygame.image.load("img/icon.jpg")
-    pygame.display.set_icon(icon)
-
-    clock = pygame.time.Clock()
-    game_running = True
-    road = Road(SCREEN_WIDTH, SCREEN_HEIGHT)
-    mycar = MyCar(road_width, road_height)
-
-    def can_spawn_target(x):
-        count = sum(1 for target in target_list if target.x == x and target.y < 300)
-        return count < 1
-
-    while game_running:
-        delta_time = clock.tick(30)
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                game_running = False
-            if event.type == pygame.MOUSEBUTTONUP:
-                print(pygame.mouse.get_pos())
-
-        # Обработка нажатий клавиш
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            mycar.move_left()
-        if keys[pygame.K_RIGHT]:
-            mycar.move_right()
-
-        screen.fill('DarkGreen')
-
-        if tree_time == 0:
-            tree = Trees(SCREEN_WIDTH, SCREEN_HEIGHT)
-            tree_time = random.randint(10, 60)
-        else:
-            tree_time -= 1
-
-        if target_time == 0:
-            possible_x_positions = [310, 400, 490, 585]
-            random.shuffle(possible_x_positions)
-            for x in possible_x_positions:
-                if can_spawn_target(x):
-                    target = Target(SCREEN_WIDTH, SCREEN_HEIGHT)
-                    target.x = x
-                    target.rect.topleft = (target.x, target.y)
-                    break
-            target_time = random.randint(30, 60)
-        else:
-            target_time -= 1
-
-        road.update()
-        road.draw(screen)
-
-        for target in target_list:
-            target.update()
-            target.draw(screen)
-
-        for i in range(len(target_list)):
-            for j in range(i + 1, len(target_list)):
-                if target_list[i].check_collision(target_list[j]):
-                    target_list[i].speed = 4
-                    target_list[j].speed = 3
-
-        for trees in trees_list:
-            trees.update()
-            trees.draw(screen)
-
-        mycar.draw(screen)
-
-        pygame.display.update()
-
-    pygame.quit()
-    sys.exit()
-
-
-main()
