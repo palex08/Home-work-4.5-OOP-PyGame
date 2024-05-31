@@ -2,25 +2,32 @@ import pygame
 import sys
 import random
 
+
 class PlayerCar:
     def __init__(self, road_width, road_height, speed):
+        # Load player car image
         self.image = pygame.image.load('img/mycar.png')
         self.road_width = road_width
         self.road_height = road_height
+        # Set initial position
         self.x = 470 - self.image.get_width() // 2
         self.y = self.road_height - 150
         self.speed = speed
+        # Create rect for collision detection
         self.rect = self.image.get_rect(topleft=(self.x, self.y))
 
     def draw(self, screen):
+        # Draw the car on the screen
         screen.blit(self.image, (self.x, self.y))
 
     def move_left(self):
+        # Move car to the left
         if self.x - self.speed >= 290:
             self.x -= self.speed
         self.rect.topleft = (self.x, self.y)
 
     def move_right(self):
+        # Move car to the right
         if self.x + self.speed <= 650 - self.image.get_width():
             self.x += self.speed
         self.rect.topleft = (self.x, self.y)
@@ -28,31 +35,38 @@ class PlayerCar:
 
 class Tree:
     def __init__(self, screen_width, screen_height, speed, trees_list):
+        # Initialize tree attributes
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.images = ['img/nature/tree1.png', 'img/nature/tree2.png', 'img/nature/tree3.png']
         self.image = pygame.image.load(random.choice(self.images))
         self.speed = speed
-        self.side_tree = random.choice([(0, self.screen_width - 1030),
-                                        (self.screen_width - 500, self.screen_width - 300)])
+        # Choose random side for the tree
+        self.side_tree = random.choice(
+            [(0, self.screen_width - 1030), (self.screen_width - 500, self.screen_width - 300)])
         self.x = random.randint(self.side_tree[0], self.side_tree[1])
         self.y = 0 - self.image.get_height()
         self.trees_list = trees_list
+        # Create rect for collision detection
         self.rect = self.image.get_rect(topleft=(self.x, self.y))
         self.trees_list.append(self)
 
     def update(self):
+        # Update tree position
         self.y += self.speed
         self.rect.topleft = (self.x, self.y)
+        # Remove tree if it goes off-screen
         if self.y > self.screen_height:
             self.trees_list.remove(self)
 
     def draw(self, screen):
+        # Draw the tree on the screen
         screen.blit(self.image, (self.x, self.y))
 
 
 class Road:
     def __init__(self, screen_width, screen_height, speed=6):
+        # Initialize road attributes
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.road_image = pygame.image.load("img/road.png")
@@ -61,17 +75,20 @@ class Road:
         self.speed = speed
 
     def update(self):
+        # Update road position to create moving effect
         self.y += self.speed
         if self.y + self.road_image.get_height() > self.screen_height:
             self.y = -self.road_image.get_height()
 
     def draw(self, screen):
+        # Draw the road on the screen
         screen.blit(self.road_image, (self.x, self.y))
         screen.blit(self.road_image, (self.x, self.y + self.road_image.get_height()))
 
 
 class Target:
     def __init__(self, screen_width, screen_height, player_car, target_list):
+        # Initialize target attributes
         self.player_car = player_car
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -82,25 +99,31 @@ class Target:
         self.x = random.choice([310, 400, 490, 585])
         self.y = 0 - self.image.get_height()
         self.speed = random.randint(3, 6)
+        # Create rect for collision detection
         self.rect = self.image.get_rect(topleft=(self.x, self.y))
         self.target_list = target_list
         self.target_list.append(self)
 
     def update(self):
+        # Update target position
         self.y += self.speed
         self.rect.topleft = (self.x, self.y)
         self.check_collision_with_others()
+        # Remove target if it goes off screen
         if self.y > self.screen_height:
             self.target_list.remove(self)
+        # Check for collision with player car
         if self.rect.colliderect(self.player_car.rect):
             self.target_list.remove(self)
             return True
         return False
 
     def draw(self, screen):
+        # Draw the target on the screen
         screen.blit(self.image, (self.x, self.y))
 
     def check_collision_with_others(self):
+        # Adjust speed if collision with another target
         for target in self.target_list:
             if target != self and self.rect.colliderect(target.rect):
                 self.speed = 3
@@ -109,6 +132,7 @@ class Target:
 
 class Game:
     def __init__(self):
+        # Initialize game attributes
         self.SCREEN_WIDTH = 1200
         self.SCREEN_HEIGHT = 650
         self.speed = 6
@@ -135,9 +159,11 @@ class Game:
         self.player_car = PlayerCar(self.road_width, self.road_height, self.speed)
 
     def can_spawn_target(self, x):
+        # Check if a target can be spawned at position x
         return sum(1 for target in self.target_list if target.x == x and target.y < 300) < 1
 
     def run(self):
+        # Main game loop
         game_running = True
         while game_running:
             delta_time = self.clock.tick(30)
@@ -218,7 +244,8 @@ class Game:
             if self.lives <= 0:
                 game_running = False
                 game_over_text = self.font.render("GAME OVER", True, (255, 0, 0))
-                self.screen.blit(game_over_text, (self.SCREEN_WIDTH // 2 - game_over_text.get_width() // 2, self.SCREEN_HEIGHT // 2))
+                self.screen.blit(game_over_text,
+                                 (self.SCREEN_WIDTH // 2 - game_over_text.get_width() // 2, self.SCREEN_HEIGHT // 2))
                 pygame.display.update()
                 pygame.time.wait(3000)
 
@@ -230,5 +257,3 @@ class Game:
 
 if __name__ == "__main__":
     Game().run()
-
-
